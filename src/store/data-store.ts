@@ -38,7 +38,8 @@ export class DataStore {
     ext: string,
   ): Promise<ProfileRecord> {
     await this.ensureDir();
-    const filename = `${domain}-${id}-${Date.now()}${ext}`;
+    const now = Date.now();
+    const filename = `${domain}-${id}-${now}${ext}`;
     const artifactPath = join(this.outputDir, filename);
     await writeFile(artifactPath, data);
 
@@ -46,7 +47,7 @@ export class DataStore {
       id,
       domain,
       type,
-      timestamp: Date.now(),
+      timestamp: now,
       summary: {},
       artifactPath,
     };
@@ -56,9 +57,10 @@ export class DataStore {
 
   updateSummary(id: string, summary: Record<string, unknown>): void {
     const record = this.records.get(id);
-    if (record) {
-      record.summary = summary;
+    if (!record) {
+      throw new Error(`No record found for id: ${id}`);
     }
+    record.summary = summary;
   }
 
   async flushManifest(): Promise<void> {

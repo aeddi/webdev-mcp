@@ -57,6 +57,16 @@ describe("DataStore", () => {
     expect(Buffer.compare(content, pngData)).toBe(0);
   });
 
+  it("updateSummary updates the summary on an existing record", () => {
+    store.save({ id: "s1", domain: "cpu", type: "profile", timestamp: 1, summary: {} });
+    store.updateSummary("s1", { topFunction: "render", selfTime: 42 });
+    expect(store.get("s1")?.summary).toEqual({ topFunction: "render", selfTime: 42 });
+  });
+
+  it("updateSummary throws for a missing id", () => {
+    expect(() => store.updateSummary("nonexistent", { a: 1 })).toThrow("No record found for id: nonexistent");
+  });
+
   it("flushes manifest to disk", async () => {
     store.save({ id: "x", domain: "cpu", type: "profile", timestamp: 1, summary: { a: 1 } });
     await store.flushManifest();
