@@ -19,7 +19,9 @@ import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
 import { createInteractionTools } from "./tools/interaction-tools.js";
+import { createAnalysisTools } from "./tools/analysis-tools.js";
 import { toolSuccess, toolError, type ToolResult } from "./types.js";
+import { readFile } from "node:fs/promises";
 
 const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webdev-mcp-data";
 
@@ -49,6 +51,49 @@ const sessionTools = createSessionTools(session, store);
 const metricsTools = createMetricsTools(consoleDomain, networkDomain);
 const profilingTools = createProfilingTools(cpuDomain, memoryDomain, store);
 const interactionTools = createInteractionTools(interactionDomain, store);
+
+// ---- Query Handlers
+
+queryEngine.register("cpu", async (artifactPath, filter) => {
+  const data = JSON.parse(await readFile(artifactPath, "utf-8"));
+  const filtered = cpuDomain.filterProfile(data, filter as any);
+  return { functions: filtered.map((n: any) => ({
+    functionName: n.callFrame.functionName,
+    url: n.callFrame.url,
+    lineNumber: n.callFrame.lineNumber,
+    hitCount: n.hitCount,
+  }))};
+});
+
+queryEngine.register("memory", async (artifactPath, filter) => {
+  const data = JSON.parse(await readFile(artifactPath, "utf-8"));
+  const buckets = new Map<string, { type: string; count: number; size: number }>();
+  const nodes = data.nodes;
+  const strings = data.strings;
+  const nodeFieldCount = data.snapshot?.meta?.node_fields?.length ?? 7;
+  for (let i = 0; i < nodes.length; i += nodeFieldCount) {
+    const name = strings[nodes[i + 1]] || "(anonymous)";
+    const selfSize = nodes[i + 3];
+    const existing = buckets.get(name);
+    if (existing) { existing.count++; existing.size += selfSize; }
+    else { buckets.set(name, { type: name, count: 1, size: selfSize }); }
+  }
+  const filtered = memoryDomain.filterSnapshot(buckets, filter as any);
+  return { objects: filtered };
+});
+
+queryEngine.register("network", async (_artifactPath, filter) => {
+  const requests = networkDomain.getRequests(filter as any);
+  return { requests };
+});
+
+queryEngine.register("coverage", async (artifactPath, filter) => {
+  const data = JSON.parse(await readFile(artifactPath, "utf-8"));
+  const filtered = coverageDomain.filterEntries(data.entries, filter as any);
+  return { entries: filtered, summary: data.summary };
+});
+
+const analysisTools = createAnalysisTools(store, queryEngine);
 
 // ---- MCP Server
 
@@ -344,6 +389,18 @@ mcp.registerTool("cross_browser_screenshot", {
     return toolResponse(toolError("internal", "Cross-browser capture failed", String(err)));
   }
 });
+
+// ---- Analysis Tools
+
+mcp.registerTool("query_profile", {
+  title: "Query Profile",
+  description:
+    "Drill into a profiling artifact by ID with domain-specific filters. Use this to get detailed data from CPU profiles, heap snapshots, network logs, or coverage reports. Each domain supports different filter fields:\n- cpu: { minSelfTime?, functionName?, url? }\n- memory: { objectType?, minRetainedSize? }\n- network: { resourceType?, minSize?, blocking?, domain? }\n- coverage: { url?, minUnusedPercent? }",
+  inputSchema: z.object({
+    id: z.string().describe("Profile/artifact ID returned by a profiling tool"),
+    filter: z.record(z.unknown()).optional().describe("Domain-specific filter object"),
+  }),
+}, async (args) => toolResponse(await analysisTools.queryProfile(args)));
 
 // ---- Start Server
 
