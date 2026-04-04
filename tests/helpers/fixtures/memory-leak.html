@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Memory Leak Test Page</title>
+</head>
+<body>
+  <h1>Memory Leak Page</h1>
+  <button id="leak">Create Leak</button>
+  <script>
+    const leaks = [];
+    document.getElementById("leak").addEventListener("click", () => {
+      for (let i = 0; i < 100; i++) {
+        leaks.push(new Array(10000).fill("leak-data-" + Date.now()));
+      }
+      console.log("Leaked objects:", leaks.length);
+    });
+  </script>
+</body>
+</html>

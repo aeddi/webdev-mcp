@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Slow Render Test Page</title>
+  <style>
+    .animated { width: 100px; height: 100px; background: red; transition: transform 0.5s; }
+    .animated.moved { transform: translateX(300px); }
+  </style>
+</head>
+<body>
+  <h1>Slow Render Page</h1>
+  <div class="animated" id="animated"></div>
+  <button id="trigger-layout">Force Layout</button>
+  <button id="trigger-animation">Animate</button>
+  <script>
+    document.getElementById("trigger-layout").addEventListener("click", () => {
+      for (let i = 0; i < 1000; i++) {
+        const div = document.createElement("div");
+        div.style.width = "50px";
+        div.style.height = "50px";
+        document.body.appendChild(div);
+        void div.offsetHeight;
+      }
+    });
+    document.getElementById("trigger-animation").addEventListener("click", () => {
+      document.getElementById("animated").classList.toggle("moved");
+    });
+  </script>
+</body>
+</html>

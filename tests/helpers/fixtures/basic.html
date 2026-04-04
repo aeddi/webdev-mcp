@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Basic Test Page</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    .box { width: 100px; height: 100px; background: blue; }
+  </style>
+</head>
+<body>
+  <h1>Basic Page</h1>
+  <p id="content">Hello World</p>
+  <div class="box" id="box"></div>
+  <button id="btn">Click me</button>
+  <script>
+    console.log("page loaded");
+    console.warn("test warning");
+    document.getElementById("btn").addEventListener("click", () => {
+      console.log("button clicked");
+      document.getElementById("content").textContent = "Clicked!";
+    });
+  </script>
+</body>
+</html>

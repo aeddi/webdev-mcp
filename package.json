@@ -1,0 +1,31 @@
+{
+  "name": "webpage-optimizer",
+  "version": "0.1.0",
+  "description": "MCP server for webpage performance debugging and optimization",
+  "type": "module",
+  "main": "dist/server.js",
+  "bin": {
+    "webpage-optimizer": "dist/server.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "npx tsx src/server.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "chrome-launcher": "^1.1.0",
+    "lighthouse": "^13.0.0",
+    "pixelmatch": "^6.0.0",
+    "playwright": "^1.52.0",
+    "pngjs": "^7.0.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.1.0"
+  }
+}

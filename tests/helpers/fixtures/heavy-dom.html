@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Heavy DOM Test Page</title>
+  <style>
+    .unused-rule-1 { color: purple; }
+    .unused-rule-2 { color: orange; }
+    .used-rule { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Heavy DOM Page</h1>
+  <div id="root"></div>
+  <span class="used-rule">Styled</span>
+  <script>
+    const root = document.getElementById("root");
+    function buildTree(parent, depth, breadth) {
+      if (depth === 0) return;
+      for (let i = 0; i < breadth; i++) {
+        const div = document.createElement("div");
+        div.className = "node-" + depth;
+        div.textContent = "D" + depth + "N" + i;
+        parent.appendChild(div);
+        buildTree(div, depth - 1, breadth);
+      }
+    }
+    buildTree(root, 5, 3);
+
+    const detached = document.createElement("div");
+    detached.id = "detached-tree";
+    for (let i = 0; i < 10; i++) {
+      detached.appendChild(document.createElement("span"));
+    }
+    window._detachedRef = detached;
+  </script>
+</body>
+</html>
