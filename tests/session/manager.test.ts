@@ -81,7 +81,7 @@ describe("SessionManager", () => {
       async reset() { calls.push("reset"); },
     };
 
-    session.registerModule(mockModule);
+    await session.registerModule(mockModule);
     await session.navigate(server.url + "/basic.html");
     expect(calls).toContain("attach");
   });
@@ -96,7 +96,7 @@ describe("SessionManager", () => {
       async reset() { calls.push("reset"); },
     };
 
-    session.registerModule(mockModule);
+    await session.registerModule(mockModule);
     await session.navigate(server.url + "/basic.html");
     await session.navigate(server.url + "/slow-render.html");
     expect(calls.filter((c) => c === "reset")).toHaveLength(1);

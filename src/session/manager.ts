@@ -25,6 +25,7 @@ export class SessionManager {
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private cdpSession: CDPSession | null = null;
+  private launchPromise: Promise<void> | null = null;
   private modules: DomainModule[] = [];
   private config: BrowserConfig = {};
   private currentUrl: string | null = null;
@@ -34,10 +35,10 @@ export class SessionManager {
     this.config = { ...this.config, ...config };
   }
 
-  registerModule(module: DomainModule): void {
+  async registerModule(module: DomainModule): Promise<void> {
     this.modules.push(module);
     if (this.cdpSession && this.page) {
-      module.attach(this.cdpSession, this.page);
+      await module.attach(this.cdpSession, this.page);
     }
   }
 
@@ -63,7 +64,8 @@ export class SessionManager {
 
   async navigate(url: string): Promise<NavigationResult> {
     if (!this.browser) {
-      await this.launch();
+      this.launchPromise ??= this.launch();
+      await this.launchPromise;
     }
 
     if (this.hasNavigated) {
@@ -138,17 +140,16 @@ export class SessionManager {
       await this.cdpSession.detach();
       this.cdpSession = null;
     }
-    if (this.page) {
-      this.page = null;
-    }
     if (this.context) {
       await this.context.close();
       this.context = null;
     }
+    this.page = null; // context.close() already closed the page
     if (this.browser) {
       await this.browser.close();
       this.browser = null;
     }
+    this.launchPromise = null;
     this.currentUrl = null;
     this.hasNavigated = false;
   }
