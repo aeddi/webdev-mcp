@@ -12,9 +12,11 @@ import { RenderingDomain } from "./domains/rendering.js";
 import { WebVitalsDomain } from "./domains/web-vitals.js";
 import { DomDomain } from "./domains/dom.js";
 import { CoverageDomain } from "./domains/coverage.js";
+import { InteractionDomain } from "./domains/interaction.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
+import { createInteractionTools } from "./tools/interaction-tools.js";
 import { toolSuccess, toolError, type ToolResult } from "./types.js";
 
 const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webdev-mcp-data";
@@ -35,12 +37,14 @@ const renderingDomain = new RenderingDomain();
 const webVitalsDomain = new WebVitalsDomain();
 const domDomain = new DomDomain();
 const coverageDomain = new CoverageDomain(store);
+const interactionDomain = new InteractionDomain(renderingDomain);
 
 // ---- Tool Handlers
 
 const sessionTools = createSessionTools(session, store);
 const metricsTools = createMetricsTools(consoleDomain, networkDomain);
 const profilingTools = createProfilingTools(cpuDomain, memoryDomain, store);
+const interactionTools = createInteractionTools(interactionDomain, store);
 
 // ---- MCP Server
 
@@ -238,6 +242,30 @@ mcp.registerTool("get_coverage", {
   }
 });
 
+// ---- Interaction Tools
+
+mcp.registerTool("simulate_interaction", {
+  title: "Simulate Interaction",
+  description: "Simulate a user interaction: click, type, scroll, or hover. Returns timing and layout impact.",
+  inputSchema: z.object({
+    action: z.enum(["click", "type", "scroll", "hover"]).describe("Type of interaction"),
+    selector: z.string().optional().describe("CSS selector of target element"),
+    text: z.string().optional().describe("Text to type (for 'type' action)"),
+    x: z.number().optional().describe("X coordinate"),
+    y: z.number().optional().describe("Y coordinate"),
+  }),
+}, async (args) => toolResponse(await interactionTools.simulateInteraction(args)));
+
+mcp.registerTool("screenshot", {
+  title: "Screenshot",
+  description: "Capture a screenshot of the current page or a specific element. Returns the image.",
+  inputSchema: z.object({
+    selector: z.string().optional().describe("CSS selector for element screenshot"),
+    fullPage: z.boolean().optional().describe("Capture full scrollable page"),
+    label: z.string().optional().describe("Label for comparison"),
+  }),
+}, async (args) => interactionTools.screenshot(args));
+
 // ---- Start Server
 
 async function main() {
@@ -246,6 +274,7 @@ async function main() {
   await session.registerModule(cpuDomain);
   await session.registerModule(memoryDomain);
   await session.registerModule(renderingDomain);
+  await session.registerModule(interactionDomain);
   await session.registerModule(webVitalsDomain);
   await session.registerModule(domDomain);
   await session.registerModule(coverageDomain);
