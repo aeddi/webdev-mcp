@@ -10,6 +10,8 @@ import { CpuDomain } from "./domains/cpu.js";
 import { MemoryDomain } from "./domains/memory.js";
 import { RenderingDomain } from "./domains/rendering.js";
 import { WebVitalsDomain } from "./domains/web-vitals.js";
+import { DomDomain } from "./domains/dom.js";
+import { CoverageDomain } from "./domains/coverage.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
@@ -31,6 +33,8 @@ const cpuDomain = new CpuDomain();
 const memoryDomain = new MemoryDomain(store);
 const renderingDomain = new RenderingDomain();
 const webVitalsDomain = new WebVitalsDomain();
+const domDomain = new DomDomain();
+const coverageDomain = new CoverageDomain(store);
 
 // ---- Tool Handlers
 
@@ -192,6 +196,48 @@ mcp.registerTool("get_web_vitals", {
   }
 });
 
+// ---- DOM + Coverage Tools
+
+mcp.registerTool("get_dom_stats", {
+  title: "Get DOM Stats",
+  description: "Get DOM statistics: total node count, max tree depth, detached node count, element distribution by tag.",
+  inputSchema: z.object({}),
+}, async () => {
+  try {
+    const stats = await domDomain.getStats();
+    return toolResponse(toolSuccess(stats as unknown as Record<string, unknown>));
+  } catch (err) {
+    return toolResponse(toolError("internal", "Failed to get DOM stats", String(err)));
+  }
+});
+
+mcp.registerTool("get_coverage", {
+  title: "Get Coverage",
+  description: "Collect JS and/or CSS code coverage. Returns per-file used/unused percentages.",
+  inputSchema: z.object({
+    type: z.enum(["js", "css", "both"]).describe("Coverage type to collect"),
+  }),
+}, async (args) => {
+  try {
+    const results: Record<string, unknown> = {};
+    if (args.type === "js" || args.type === "both") {
+      await coverageDomain.startJsCoverage();
+      await new Promise((r) => setTimeout(r, 100));
+      const js = await coverageDomain.stopJsCoverage();
+      results.js = { id: js.id, entries: js.entries, summary: js.summary };
+    }
+    if (args.type === "css" || args.type === "both") {
+      await coverageDomain.startCssCoverage();
+      await new Promise((r) => setTimeout(r, 100));
+      const css = await coverageDomain.stopCssCoverage();
+      results.css = { id: css.id, entries: css.entries, summary: css.summary };
+    }
+    return toolResponse(toolSuccess(results));
+  } catch (err) {
+    return toolResponse(toolError("internal", "Failed to get coverage", String(err)));
+  }
+});
+
 // ---- Start Server
 
 async function main() {
@@ -201,6 +247,8 @@ async function main() {
   await session.registerModule(memoryDomain);
   await session.registerModule(renderingDomain);
   await session.registerModule(webVitalsDomain);
+  await session.registerModule(domDomain);
+  await session.registerModule(coverageDomain);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }
