@@ -14,6 +14,7 @@ import { DomDomain } from "./domains/dom.js";
 import { CoverageDomain } from "./domains/coverage.js";
 import { InteractionDomain } from "./domains/interaction.js";
 import { LighthouseDomain } from "./domains/lighthouse.js";
+import { CrossBrowserDomain } from "./domains/cross-browser.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
@@ -40,6 +41,7 @@ const domDomain = new DomDomain();
 const coverageDomain = new CoverageDomain(store);
 const interactionDomain = new InteractionDomain(renderingDomain);
 const lighthouseDomain = new LighthouseDomain(store);
+const crossBrowserDomain = new CrossBrowserDomain(store);
 
 // ---- Tool Handlers
 
@@ -286,6 +288,60 @@ mcp.registerTool("run_lighthouse", {
     return toolResponse(toolSuccess({ reportId: result.id, ...result.summary }));
   } catch (err) {
     return toolResponse(toolError("internal", "Lighthouse audit failed", String(err)));
+  }
+});
+
+// ---- Cross-Browser Tool
+
+mcp.registerTool("cross_browser_screenshot", {
+  title: "Cross Browser Screenshot",
+  description: "Load the current URL in Firefox and/or WebKit, capture screenshots. Optionally compute visual diff against Chromium.",
+  inputSchema: z.object({
+    browsers: z.array(z.enum(["firefox", "webkit"])).describe("Browsers to capture"),
+    diff: z.boolean().optional().describe("Compute visual diff against current Chromium page"),
+  }),
+}, async (args) => {
+  try {
+    const url = session.getCurrentUrl();
+    if (!url) return toolResponse(toolError("session", "No active page — navigate first"));
+
+    const page = session.getPage();
+    let referenceScreenshot: Buffer | undefined;
+    if (args.diff && page) {
+      referenceScreenshot = Buffer.from(await page.screenshot({ type: "png" }));
+    }
+
+    const config = session.getConfig();
+    const viewport = config.viewport ?? { width: 1280, height: 720 };
+
+    const result = await crossBrowserDomain.capture(url, {
+      browsers: args.browsers,
+      viewport,
+      referenceScreenshot,
+    });
+
+    const content: Array<{ type: "text"; text: string } | { type: "image"; mimeType: string; data: string }> = [];
+
+    for (const [browser, screenshot] of Object.entries(result.screenshots)) {
+      if (screenshot) {
+        content.push({ type: "text", text: `--- ${browser} screenshot ---` });
+        content.push({ type: "image", mimeType: "image/png", data: (screenshot as Buffer).toString("base64") });
+      }
+    }
+
+    if (result.diffs) {
+      const diffSummary: Record<string, unknown> = {};
+      for (const [browser, diff] of Object.entries(result.diffs)) {
+        if (diff) {
+          diffSummary[browser] = { mismatchPercent: diff.mismatchPercent, diffPixels: diff.diffPixels };
+        }
+      }
+      content.push({ type: "text", text: JSON.stringify({ success: true, diffs: diffSummary }, null, 2) });
+    }
+
+    return { content };
+  } catch (err) {
+    return toolResponse(toolError("internal", "Cross-browser capture failed", String(err)));
   }
 });
 
