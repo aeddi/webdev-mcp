@@ -1,6 +1,6 @@
 import type { ConsoleDomain } from "../domains/console.js";
 import type { NetworkDomain } from "../domains/network.js";
-import type { ToolResult } from "../types.js";
+import type { ToolResult, ConsoleEntry } from "../types.js";
 import { toolSuccess, toolError } from "../types.js";
 
 export function createMetricsTools(
@@ -8,9 +8,9 @@ export function createMetricsTools(
   networkDomain: NetworkDomain,
 ) {
   return {
-    async getConsoleLog(args: { level?: string }): Promise<ToolResult> {
+    async getConsoleLog(args: { level?: ConsoleEntry["level"] }): Promise<ToolResult> {
       try {
-        const entries = consoleDomain.getEntries(args.level as any);
+        const entries = consoleDomain.getEntries(args.level);
         return toolSuccess({
           entries,
           count: entries.length,

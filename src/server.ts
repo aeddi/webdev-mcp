@@ -23,9 +23,6 @@ const queryEngine = new QueryEngine();
 const consoleDomain = new ConsoleDomain();
 const networkDomain = new NetworkDomain();
 
-session.registerModule(consoleDomain);
-session.registerModule(networkDomain);
-
 // ---- Tool Handlers
 
 const sessionTools = createSessionTools(session, store);
@@ -135,6 +132,8 @@ mcp.registerTool("get_network_log", {
 // ---- Start Server
 
 async function main() {
+  await session.registerModule(consoleDomain);
+  await session.registerModule(networkDomain);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }
