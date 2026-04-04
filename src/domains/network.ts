@@ -77,7 +77,11 @@ export class NetworkDomain implements DomainModule {
       for (const { event, handler } of this.handlers) {
         this.cdp.off(event, handler);
       }
-      try { await this.cdp.send("Network.disable"); } catch {}
+      try {
+        await this.cdp.send("Network.disable");
+      } catch {
+        // Session may already be closed
+      }
     }
     this.handlers = [];
     this.cdp = null;

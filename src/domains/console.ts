@@ -56,7 +56,11 @@ export class ConsoleDomain implements DomainModule {
     if (this.cdp) {
       this.cdp.off("Runtime.consoleAPICalled", this.onEntry!);
       this.cdp.off("Runtime.exceptionThrown", this.onException!);
-      try { await this.cdp.send("Runtime.disable"); } catch {}
+      try {
+        await this.cdp.send("Runtime.disable");
+      } catch {
+        // Session may already be closed
+      }
     }
     this.cdp = null;
     this.onEntry = null;
@@ -67,7 +71,7 @@ export class ConsoleDomain implements DomainModule {
     this.entries = [];
   }
 
-  getEntries(level?: string): ConsoleEntry[] {
+  getEntries(level?: ConsoleEntry["level"]): ConsoleEntry[] {
     if (level) {
       return this.entries.filter((e) => e.level === level);
     }
