@@ -1,4 +1,5 @@
 import type { CpuDomain } from "../domains/cpu.js";
+import type { MemoryDomain } from "../domains/memory.js";
 import type { DataStore } from "../store/data-store.js";
 import type { ToolResult } from "../types.js";
 import { toolSuccess, toolError } from "../types.js";
@@ -6,6 +7,7 @@ import { randomUUID } from "node:crypto";
 
 export function createProfilingTools(
   cpuDomain: CpuDomain,
+  memoryDomain: MemoryDomain,
   store: DataStore,
 ) {
   const activeSessions = new Map<string, { domain: string; sessionId: string }>();
@@ -62,6 +64,32 @@ export function createProfilingTools(
         return toolSuccess({ profileId, domain: session.domain, summary });
       } catch (err) {
         return toolError("profiling", `Failed to stop profiling`, String(err));
+      }
+    },
+
+    async takeHeapSnapshot(): Promise<ToolResult> {
+      try {
+        const result = await memoryDomain.takeHeapSnapshot();
+        return toolSuccess({
+          snapshotId: result.id,
+          summary: result.summary,
+        });
+      } catch (err) {
+        return toolError("profiling", "Failed to take heap snapshot", String(err));
+      }
+    },
+
+    async compareSnapshots(args: { snapshotA: string; snapshotB: string }): Promise<ToolResult> {
+      try {
+        const diff = await memoryDomain.compareSnapshots(args.snapshotA, args.snapshotB);
+        return toolSuccess({
+          sizeDelta: diff.sizeDelta,
+          added: diff.added.slice(0, 20),
+          removed: diff.removed.slice(0, 20),
+          grown: diff.grown.slice(0, 20),
+        });
+      } catch (err) {
+        return toolError("profiling", "Failed to compare snapshots", String(err));
       }
     },
   };

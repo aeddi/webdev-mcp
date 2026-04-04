@@ -7,6 +7,7 @@ import { QueryEngine } from "./store/query-engine.js";
 import { ConsoleDomain } from "./domains/console.js";
 import { NetworkDomain } from "./domains/network.js";
 import { CpuDomain } from "./domains/cpu.js";
+import { MemoryDomain } from "./domains/memory.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
@@ -25,12 +26,13 @@ const queryEngine = new QueryEngine();
 const consoleDomain = new ConsoleDomain();
 const networkDomain = new NetworkDomain();
 const cpuDomain = new CpuDomain();
+const memoryDomain = new MemoryDomain(store);
 
 // ---- Tool Handlers
 
 const sessionTools = createSessionTools(session, store);
 const metricsTools = createMetricsTools(consoleDomain, networkDomain);
-const profilingTools = createProfilingTools(cpuDomain, store);
+const profilingTools = createProfilingTools(cpuDomain, memoryDomain, store);
 
 // ---- MCP Server
 
@@ -151,12 +153,30 @@ mcp.registerTool("stop_profiling", {
   }),
 }, async (args) => toolResponse(await profilingTools.stopProfiling(args)));
 
+mcp.registerTool("take_heap_snapshot", {
+  title: "Take Heap Snapshot",
+  description:
+    "Take a point-in-time V8 heap snapshot. Returns summary (total size, node count, top object types by retained size) and a snapshot ID for querying details or comparing with another snapshot.",
+  inputSchema: z.object({}),
+}, async () => toolResponse(await profilingTools.takeHeapSnapshot()));
+
+mcp.registerTool("compare_snapshots", {
+  title: "Compare Heap Snapshots",
+  description:
+    "Compare two heap snapshots by ID. Returns objects added, removed, and grown between the two snapshots. Key tool for memory leak detection — take a snapshot, perform the suspected leaky action, take another, compare.",
+  inputSchema: z.object({
+    snapshotA: z.string().describe("ID of the first (baseline) snapshot"),
+    snapshotB: z.string().describe("ID of the second (after action) snapshot"),
+  }),
+}, async (args) => toolResponse(await profilingTools.compareSnapshots(args)));
+
 // ---- Start Server
 
 async function main() {
   await session.registerModule(consoleDomain);
   await session.registerModule(networkDomain);
   await session.registerModule(cpuDomain);
+  await session.registerModule(memoryDomain);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }

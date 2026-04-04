@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { SessionManager } from "../../src/session/manager.js";
 import { CpuDomain } from "../../src/domains/cpu.js";
+import { MemoryDomain } from "../../src/domains/memory.js";
 import { DataStore } from "../../src/store/data-store.js";
 import { createProfilingTools } from "../../src/tools/profiling-tools.js";
 import { startTestServer, type TestServer } from "../helpers/test-server.js";
@@ -105,7 +106,7 @@ describe("Profiling Tools - CPU", () => {
 
   it("start and stop profiling via tool handlers", async () => {
     const store = new DataStore(tempDir);
-    const tools = createProfilingTools(cpu, store);
+    const tools = createProfilingTools(cpu, new MemoryDomain(store), store);
 
     await session.navigate(server.url + "/basic.html");
 
@@ -127,7 +128,7 @@ describe("Profiling Tools - CPU", () => {
 
   it("returns error for unknown domain", async () => {
     const store = new DataStore(tempDir);
-    const tools = createProfilingTools(cpu, store);
+    const tools = createProfilingTools(cpu, new MemoryDomain(store), store);
     const result = await tools.startProfiling({ domain: "unknown" });
     expect(result.success).toBe(false);
   });
