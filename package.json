@@ -1,11 +1,11 @@
 {
-  "name": "webpage-optimizer",
+  "name": "claude-webdev-mcp",
   "version": "0.1.0",
   "description": "MCP server for webpage performance debugging and optimization",
   "type": "module",
   "main": "dist/server.js",
   "bin": {
-    "webpage-optimizer": "dist/server.js"
+    "claude-webdev-mcp": "dist/server.js"
   },
   "scripts": {
     "build": "tsc",

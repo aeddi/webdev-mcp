@@ -10,7 +10,7 @@ import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import type { ToolResult } from "./types.js";
 
-const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webpage-optimizer-data";
+const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webdev-mcp-data";
 
 // ---- Core Services
 
@@ -31,7 +31,7 @@ const metricsTools = createMetricsTools(consoleDomain, networkDomain);
 // ---- MCP Server
 
 const mcp = new McpServer({
-  name: "webpage-optimizer",
+  name: "claude-webdev-mcp",
   version: "0.1.0",
 });
 
