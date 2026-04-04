@@ -13,6 +13,7 @@ import { WebVitalsDomain } from "./domains/web-vitals.js";
 import { DomDomain } from "./domains/dom.js";
 import { CoverageDomain } from "./domains/coverage.js";
 import { InteractionDomain } from "./domains/interaction.js";
+import { LighthouseDomain } from "./domains/lighthouse.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
@@ -38,6 +39,7 @@ const webVitalsDomain = new WebVitalsDomain();
 const domDomain = new DomDomain();
 const coverageDomain = new CoverageDomain(store);
 const interactionDomain = new InteractionDomain(renderingDomain);
+const lighthouseDomain = new LighthouseDomain(store);
 
 // ---- Tool Handlers
 
@@ -265,6 +267,27 @@ mcp.registerTool("screenshot", {
     label: z.string().optional().describe("Label for comparison"),
   }),
 }, async (args) => interactionTools.screenshot(args));
+
+// ---- Lighthouse Tool
+
+mcp.registerTool("run_lighthouse", {
+  title: "Run Lighthouse",
+  description: "Run a full Lighthouse audit. Returns scores, opportunities, and diagnostics. Raw report saved to disk.",
+  inputSchema: z.object({
+    url: z.string().optional().describe("URL to audit (defaults to current page URL)"),
+    categories: z.array(z.enum(["performance", "accessibility", "best-practices", "seo"])).optional().describe("Categories to audit"),
+    formFactor: z.enum(["mobile", "desktop"]).optional().describe("Device form factor (default: desktop)"),
+  }),
+}, async (args) => {
+  try {
+    const url = args.url ?? session.getCurrentUrl();
+    if (!url) return toolResponse(toolError("session", "No URL specified and no active page"));
+    const result = await lighthouseDomain.run(url, { categories: args.categories, formFactor: args.formFactor });
+    return toolResponse(toolSuccess({ reportId: result.id, ...result.summary }));
+  } catch (err) {
+    return toolResponse(toolError("internal", "Lighthouse audit failed", String(err)));
+  }
+});
 
 // ---- Start Server
 
