@@ -75,7 +75,7 @@ export class NetworkDomain implements DomainModule {
   async detach(): Promise<void> {
     if (this.cdp) {
       for (const { event, handler } of this.handlers) {
-        this.cdp.off(event, handler);
+        (this.cdp as any).off(event, handler);
       }
       try {
         await this.cdp.send("Network.disable");
@@ -129,7 +129,7 @@ export class NetworkDomain implements DomainModule {
   }
 
   private listen(cdp: CDPSession, event: string, handler: (e: any) => void): void {
-    cdp.on(event, handler);
+    (cdp as any).on(event, handler);
     this.handlers.push({ event, handler });
   }
 }

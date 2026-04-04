@@ -48,14 +48,14 @@ export class ConsoleDomain implements DomainModule {
       });
     };
 
-    cdp.on("Runtime.consoleAPICalled", this.onEntry);
-    cdp.on("Runtime.exceptionThrown", this.onException);
+    (cdp as any).on("Runtime.consoleAPICalled", this.onEntry);
+    (cdp as any).on("Runtime.exceptionThrown", this.onException);
   }
 
   async detach(): Promise<void> {
     if (this.cdp) {
-      this.cdp.off("Runtime.consoleAPICalled", this.onEntry!);
-      this.cdp.off("Runtime.exceptionThrown", this.onException!);
+      (this.cdp as any).off("Runtime.consoleAPICalled", this.onEntry!);
+      (this.cdp as any).off("Runtime.exceptionThrown", this.onException!);
       try {
         await this.cdp.send("Runtime.disable");
       } catch {
