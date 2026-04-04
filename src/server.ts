@@ -8,10 +8,12 @@ import { ConsoleDomain } from "./domains/console.js";
 import { NetworkDomain } from "./domains/network.js";
 import { CpuDomain } from "./domains/cpu.js";
 import { MemoryDomain } from "./domains/memory.js";
+import { RenderingDomain } from "./domains/rendering.js";
+import { WebVitalsDomain } from "./domains/web-vitals.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
 import { createProfilingTools } from "./tools/profiling-tools.js";
-import type { ToolResult } from "./types.js";
+import { toolSuccess, toolError, type ToolResult } from "./types.js";
 
 const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webdev-mcp-data";
 
@@ -27,6 +29,8 @@ const consoleDomain = new ConsoleDomain();
 const networkDomain = new NetworkDomain();
 const cpuDomain = new CpuDomain();
 const memoryDomain = new MemoryDomain(store);
+const renderingDomain = new RenderingDomain();
+const webVitalsDomain = new WebVitalsDomain();
 
 // ---- Tool Handlers
 
@@ -170,6 +174,24 @@ mcp.registerTool("compare_snapshots", {
   }),
 }, async (args) => toolResponse(await profilingTools.compareSnapshots(args)));
 
+// ---- Web Vitals Tool
+
+mcp.registerTool("get_web_vitals", {
+  title: "Get Web Vitals",
+  description:
+    "Read current Core Web Vitals: LCP (Largest Contentful Paint, ms), CLS (Cumulative Layout Shift, unitless), INP (Interaction to Next Paint, ms). Also returns rendering summary (layout shifts, long tasks, paint events).",
+  inputSchema: z.object({}),
+}, async () => {
+  try {
+    await renderingDomain.collectEntries();
+    const metrics = await webVitalsDomain.getMetrics();
+    const rendering = renderingDomain.getSummary();
+    return toolResponse(toolSuccess({ metrics, rendering }));
+  } catch (err) {
+    return toolResponse(toolError("internal", "Failed to get web vitals", String(err)));
+  }
+});
+
 // ---- Start Server
 
 async function main() {
@@ -177,6 +199,8 @@ async function main() {
   await session.registerModule(networkDomain);
   await session.registerModule(cpuDomain);
   await session.registerModule(memoryDomain);
+  await session.registerModule(renderingDomain);
+  await session.registerModule(webVitalsDomain);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }
