@@ -6,8 +6,10 @@ import { DataStore } from "./store/data-store.js";
 import { QueryEngine } from "./store/query-engine.js";
 import { ConsoleDomain } from "./domains/console.js";
 import { NetworkDomain } from "./domains/network.js";
+import { CpuDomain } from "./domains/cpu.js";
 import { createSessionTools } from "./tools/session-tools.js";
 import { createMetricsTools } from "./tools/metrics-tools.js";
+import { createProfilingTools } from "./tools/profiling-tools.js";
 import type { ToolResult } from "./types.js";
 
 const OUTPUT_DIR = process.env.WPO_OUTPUT_DIR ?? "./webdev-mcp-data";
@@ -22,11 +24,13 @@ const queryEngine = new QueryEngine();
 
 const consoleDomain = new ConsoleDomain();
 const networkDomain = new NetworkDomain();
+const cpuDomain = new CpuDomain();
 
 // ---- Tool Handlers
 
 const sessionTools = createSessionTools(session, store);
 const metricsTools = createMetricsTools(consoleDomain, networkDomain);
+const profilingTools = createProfilingTools(cpuDomain, store);
 
 // ---- MCP Server
 
@@ -129,11 +133,30 @@ mcp.registerTool("get_network_log", {
   }),
 }, async (args) => toolResponse(await metricsTools.getNetworkLog(args)));
 
+// ---- Profiling Tools
+
+mcp.registerTool("start_profiling", {
+  title: "Start Profiling",
+  description: "Start a profiling session for the given domain. Returns a session ID to pass to stop_profiling.",
+  inputSchema: z.object({
+    domain: z.enum(["cpu", "memory_allocation", "rendering"]).describe("The profiling domain to start"),
+  }),
+}, async (args) => toolResponse(await profilingTools.startProfiling(args)));
+
+mcp.registerTool("stop_profiling", {
+  title: "Stop Profiling",
+  description: "Stop a profiling session and save the captured profile. Returns a summary and a profile ID for querying.",
+  inputSchema: z.object({
+    id: z.string().describe("The profiling session ID returned by start_profiling"),
+  }),
+}, async (args) => toolResponse(await profilingTools.stopProfiling(args)));
+
 // ---- Start Server
 
 async function main() {
   await session.registerModule(consoleDomain);
   await session.registerModule(networkDomain);
+  await session.registerModule(cpuDomain);
   const transport = new StdioServerTransport();
   await mcp.connect(transport);
 }
