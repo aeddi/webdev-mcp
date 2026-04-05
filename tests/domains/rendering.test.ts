@@ -53,4 +53,17 @@ describe("RenderingDomain", () => {
     await rendering.reset();
     expect(rendering.getEntries().length).toBe(0);
   });
+
+  it("starts and stops rendering profiling", async () => {
+    await session.navigate(server.url + "/slow-render.html");
+    const sessionId = await rendering.startProfiling();
+    expect(sessionId).toBeTruthy();
+
+    await session.getPage()!.click("#trigger-layout");
+    await new Promise((r) => setTimeout(r, 1000));
+
+    const result = await rendering.stopProfiling(sessionId);
+    expect(result.entries).toBeDefined();
+    expect(result.summary).toHaveProperty("totalEntries");
+  });
 });

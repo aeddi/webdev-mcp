@@ -1,5 +1,6 @@
 import type { CDPSession, Page } from "playwright";
 import type { DomainModule, RenderingQueryFilter } from "../types.js";
+import { randomUUID } from "node:crypto";
 
 export interface RenderingEntry {
   type: "layout-shift" | "long-task" | "paint" | "animation-frame";
@@ -16,6 +17,7 @@ export class RenderingDomain implements DomainModule {
   private cdp: CDPSession | null = null;
   private page: Page | null = null;
   private entries: RenderingEntry[] = [];
+  private activeSessions = new Map<string, number>();
 
   async attach(cdp: CDPSession, page: Page): Promise<void> {
     this.cdp = cdp;
@@ -54,6 +56,31 @@ export class RenderingDomain implements DomainModule {
       results = results.filter((e) => (e.duration ?? 0) >= filter.minDuration!);
     }
     return results;
+  }
+
+  async startProfiling(): Promise<string> {
+    const id = randomUUID();
+    await this.collectEntries();
+    this.activeSessions.set(id, this.entries.length);
+    return id;
+  }
+
+  async stopProfiling(id: string): Promise<{ entries: RenderingEntry[]; summary: Record<string, unknown> }> {
+    const startIndex = this.activeSessions.get(id);
+    if (startIndex === undefined) throw new Error(`No active rendering session: ${id}`);
+    this.activeSessions.delete(id);
+
+    await this.collectEntries();
+    const sessionEntries = this.entries.slice(startIndex);
+
+    const summary = {
+      totalEntries: sessionEntries.length,
+      layoutShifts: sessionEntries.filter((e) => e.type === "layout-shift").length,
+      longTasks: sessionEntries.filter((e) => e.type === "long-task").length,
+      paints: sessionEntries.filter((e) => e.type === "paint").length,
+    };
+
+    return { entries: sessionEntries, summary };
   }
 
   getSummary(): Record<string, unknown> {

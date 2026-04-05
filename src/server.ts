@@ -49,7 +49,7 @@ const crossBrowserDomain = new CrossBrowserDomain(store);
 
 const sessionTools = createSessionTools(session, store);
 const metricsTools = createMetricsTools(consoleDomain, networkDomain);
-const profilingTools = createProfilingTools(cpuDomain, memoryDomain, store);
+const profilingTools = createProfilingTools(cpuDomain, memoryDomain, store, renderingDomain);
 const interactionTools = createInteractionTools(interactionDomain, store);
 
 // ---- Query Handlers
@@ -80,6 +80,12 @@ queryEngine.register("memory", async (artifactPath, filter) => {
   }
   const filtered = memoryDomain.filterSnapshot(buckets, filter as any);
   return { objects: filtered };
+});
+
+queryEngine.register("memory_allocation", async (artifactPath, filter) => {
+  const data = JSON.parse(await readFile(artifactPath, "utf-8"));
+  const allocations = memoryDomain.filterAllocationProfile(data, filter as any);
+  return { allocations };
 });
 
 queryEngine.register("network", async (_artifactPath, filter) => {
@@ -395,7 +401,7 @@ mcp.registerTool("cross_browser_screenshot", {
 mcp.registerTool("query_profile", {
   title: "Query Profile",
   description:
-    "Drill into a profiling artifact by ID with domain-specific filters. Use this to get detailed data from CPU profiles, heap snapshots, network logs, or coverage reports. Each domain supports different filter fields:\n- cpu: { minSelfTime?, functionName?, url? }\n- memory: { objectType?, minRetainedSize? }\n- network: { resourceType?, minSize?, blocking?, domain? }\n- coverage: { url?, minUnusedPercent? }",
+    "Drill into a profiling artifact by ID with domain-specific filters. Use this to get detailed data from CPU profiles, heap snapshots, allocation profiles, network logs, or coverage reports. Each domain supports different filter fields:\n- cpu: { minSelfTime?, functionName?, url? }\n- memory: { objectType?, minRetainedSize? }\n- memory_allocation: { functionName?, url?, minSelfSize? }\n- network: { resourceType?, minSize?, blocking?, domain? }\n- coverage: { url?, minUnusedPercent? }",
   inputSchema: z.object({
     id: z.string().describe("Profile/artifact ID returned by a profiling tool"),
     filter: z.record(z.unknown()).optional().describe("Domain-specific filter object"),

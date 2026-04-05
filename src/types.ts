@@ -76,6 +76,12 @@ export interface MemoryQueryFilter {
   minRetainedSize?: number;
 }
 
+export interface AllocationQueryFilter {
+  functionName?: string;
+  url?: string;
+  minSelfSize?: number;
+}
+
 export interface NetworkQueryFilter {
   resourceType?: string;
   minSize?: number;
@@ -97,6 +103,7 @@ export interface CoverageQueryFilter {
 export type QueryFilter =
   | CpuQueryFilter
   | MemoryQueryFilter
+  | AllocationQueryFilter
   | NetworkQueryFilter
   | RenderingQueryFilter
   | CoverageQueryFilter;

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Error Test Page</title>
+</head>
+<body>
+  <h1>Error Page</h1>
+  <script>
+    // Trigger an uncaught TypeError after a short delay
+    setTimeout(() => {
+      const obj = null;
+      obj.property;
+    }, 50);
+  </script>
+</body>
+</html>

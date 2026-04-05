@@ -62,4 +62,13 @@ describe("ConsoleDomain", () => {
     const entries = consoleDomain.getEntries();
     expect(entries[0].timestamp).toBeGreaterThan(0);
   });
+
+  it("captures full uncaught exception message", async () => {
+    await session.navigate(server.url + "/error.html");
+    await new Promise((r) => setTimeout(r, 500));
+    const errors = consoleDomain.getEntries("error");
+    expect(errors.length).toBeGreaterThan(0);
+    const errorText = errors[0].text;
+    expect(errorText).toContain("Cannot read properties of null");
+  });
 });

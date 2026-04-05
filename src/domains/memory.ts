@@ -1,5 +1,5 @@
 import type { CDPSession, Page } from "playwright";
-import type { DomainModule, MemoryQueryFilter } from "../types.js";
+import type { DomainModule, MemoryQueryFilter, AllocationQueryFilter } from "../types.js";
 import type { DataStore } from "../store/data-store.js";
 import { randomUUID } from "node:crypto";
 
@@ -33,6 +33,7 @@ export class MemoryDomain implements DomainModule {
 
   private cdp: CDPSession | null = null;
   private snapshots = new Map<string, Map<string, SnapshotTypeBucket>>();
+  private activeSamplingSessions = new Set<string>();
 
   constructor(private readonly store: DataStore) {}
 
@@ -52,6 +53,7 @@ export class MemoryDomain implements DomainModule {
 
   async reset(): Promise<void> {
     this.snapshots.clear();
+    this.activeSamplingSessions.clear();
   }
 
   async takeHeapSnapshot(): Promise<HeapSnapshotResult> {
@@ -123,6 +125,67 @@ export class MemoryDomain implements DomainModule {
     grown.sort((a, b) => b.sizeDelta - a.sizeDelta);
 
     return { sizeDelta: totalB - totalA, added, removed, grown };
+  }
+
+  async startAllocationSampling(): Promise<string> {
+    if (!this.cdp) throw new Error("Memory domain not attached");
+    const id = randomUUID();
+    await this.cdp.send("HeapProfiler.startSampling" as any);
+    this.activeSamplingSessions.add(id);
+    return id;
+  }
+
+  async stopAllocationSampling(id: string): Promise<{ profile: any; summary: { totalSize: number; sampleCount: number } }> {
+    if (!this.cdp) throw new Error("Memory domain not attached");
+    if (!this.activeSamplingSessions.has(id)) throw new Error(`No active sampling session: ${id}`);
+
+    const result = await this.cdp.send("HeapProfiler.stopSampling" as any) as any;
+    this.activeSamplingSessions.delete(id);
+
+    const profile = result.profile;
+    const samples = this.flattenSamples(profile.head);
+    const totalSize = samples.reduce((sum: number, s: any) => sum + s.selfSize, 0);
+
+    return {
+      profile,
+      summary: { totalSize, sampleCount: samples.length },
+    };
+  }
+
+  private flattenSamples(node: any): any[] {
+    const results: any[] = [];
+    if (node.selfSize > 0) results.push(node);
+    for (const child of node.children ?? []) {
+      results.push(...this.flattenSamples(child));
+    }
+    return results;
+  }
+
+  filterAllocationProfile(
+    profile: any,
+    filter: AllocationQueryFilter,
+  ): Array<{ functionName: string; url: string; lineNumber: number; selfSize: number }> {
+    const samples = this.flattenSamples(profile.head);
+    let results = samples.map((s: any) => ({
+      functionName: s.callFrame?.functionName || "(anonymous)",
+      url: s.callFrame?.url || "",
+      lineNumber: s.callFrame?.lineNumber ?? -1,
+      selfSize: s.selfSize,
+    }));
+
+    if (filter.functionName) {
+      const pattern = filter.functionName.toLowerCase();
+      results = results.filter((r) => r.functionName.toLowerCase().includes(pattern));
+    }
+    if (filter.url) {
+      const pattern = filter.url.toLowerCase();
+      results = results.filter((r) => r.url.toLowerCase().includes(pattern));
+    }
+    if (filter.minSelfSize !== undefined) {
+      results = results.filter((r) => r.selfSize >= filter.minSelfSize!);
+    }
+
+    return results.sort((a, b) => b.selfSize - a.selfSize);
   }
 
   filterSnapshot(buckets: Map<string, SnapshotTypeBucket>, filter: MemoryQueryFilter): SnapshotTypeBucket[] {

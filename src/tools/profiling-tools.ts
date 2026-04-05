@@ -1,5 +1,6 @@
 import type { CpuDomain } from "../domains/cpu.js";
 import type { MemoryDomain } from "../domains/memory.js";
+import type { RenderingDomain } from "../domains/rendering.js";
 import type { DataStore } from "../store/data-store.js";
 import type { ToolResult } from "../types.js";
 import { toolSuccess, toolError } from "../types.js";
@@ -9,6 +10,7 @@ export function createProfilingTools(
   cpuDomain: CpuDomain,
   memoryDomain: MemoryDomain,
   store: DataStore,
+  renderingDomain?: RenderingDomain,
 ) {
   const activeSessions = new Map<string, { domain: string; sessionId: string }>();
 
@@ -19,6 +21,13 @@ export function createProfilingTools(
         switch (args.domain) {
           case "cpu":
             sessionId = await cpuDomain.startProfiling();
+            break;
+          case "memory_allocation":
+            sessionId = await memoryDomain.startAllocationSampling();
+            break;
+          case "rendering":
+            if (!renderingDomain) return toolError("profiling", "Rendering domain not available");
+            sessionId = await renderingDomain.startProfiling();
             break;
           default:
             return toolError(
@@ -51,6 +60,27 @@ export function createProfilingTools(
             await store.saveArtifact(
               profileId, "cpu", "profile",
               JSON.stringify(result.profile), ".cpuprofile",
+            );
+            store.updateSummary(profileId, result.summary);
+            summary = result.summary;
+            break;
+          }
+          case "memory_allocation": {
+            const result = await memoryDomain.stopAllocationSampling(session.sessionId);
+            await store.saveArtifact(
+              profileId, "memory_allocation", "allocation-profile",
+              JSON.stringify(result.profile), ".heapprofile",
+            );
+            store.updateSummary(profileId, result.summary as unknown as Record<string, unknown>);
+            summary = result.summary;
+            break;
+          }
+          case "rendering": {
+            if (!renderingDomain) return toolError("profiling", "Rendering domain not available");
+            const result = await renderingDomain.stopProfiling(session.sessionId);
+            await store.saveArtifact(
+              profileId, "rendering", "profile",
+              JSON.stringify(result.entries), ".json",
             );
             store.updateSummary(profileId, result.summary);
             summary = result.summary;

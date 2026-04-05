@@ -65,4 +65,18 @@ describe("MemoryDomain", () => {
     const record = store.get(result.id);
     expect(record?.artifactPath).toBeDefined();
   });
+
+  it("starts and stops allocation sampling", async () => {
+    await session.navigate(server.url + "/memory-leak.html");
+    const sessionId = await memory.startAllocationSampling();
+    expect(sessionId).toBeTruthy();
+
+    await session.getPage()!.click("#leak");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const result = await memory.stopAllocationSampling(sessionId);
+    expect(result.profile).toBeDefined();
+    expect(result.summary.totalSize).toBeGreaterThan(0);
+    expect(result.summary.sampleCount).toBeGreaterThan(0);
+  });
 });

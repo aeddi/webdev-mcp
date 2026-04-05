@@ -36,7 +36,7 @@ export class ConsoleDomain implements DomainModule {
       const detail = event.exceptionDetails;
       this.entries.push({
         level: "error",
-        text: detail.text ?? detail.exception?.description ?? "Uncaught exception",
+        text: detail.exception?.description ?? detail.text ?? "Uncaught exception",
         timestamp: detail.timestamp ?? Date.now(),
         url: detail.url,
         lineNumber: detail.lineNumber,

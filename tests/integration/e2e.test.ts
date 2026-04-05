@@ -99,6 +99,12 @@ describe("End-to-End Workflows", () => {
       return { objects: memoryDomain.filterSnapshot(buckets, filter as any) };
     });
 
+    queryEngine.register("memory_allocation", async (artifactPath, filter) => {
+      const data = JSON.parse(await readFile(artifactPath, "utf-8"));
+      const allocations = memoryDomain.filterAllocationProfile(data, filter as any);
+      return { allocations };
+    });
+
     queryEngine.register("network", async (_path, filter) => {
       return { requests: networkDomain.getRequests(filter as any) };
     });
@@ -178,6 +184,29 @@ describe("End-to-End Workflows", () => {
     const networkResult = await metricsTools.getNetworkLog({});
     expect(networkResult.success).toBe(true);
     expect((networkResult as any).summary.totalRequests).toBeGreaterThan(0);
+  });
+
+  it("allocation profiling workflow: start → allocate → stop → query", async () => {
+    await sessionTools.navigate({ url: testServer.url + "/memory-leak.html" });
+
+    const start = await profilingTools.startProfiling({ domain: "memory_allocation" });
+    expect(start.success).toBe(true);
+
+    await session.getPage()!.click("#leak");
+    await new Promise((r) => setTimeout(r, 500));
+
+    const stop = await profilingTools.stopProfiling({ id: (start as any).id });
+    expect(stop.success).toBe(true);
+    expect((stop as any).summary.totalSize).toBeGreaterThan(0);
+    expect((stop as any).summary.sampleCount).toBeGreaterThan(0);
+
+    const query = await analysisTools.queryProfile({
+      id: (stop as any).profileId,
+      filter: {},
+    });
+    expect(query.success).toBe(true);
+    expect((query as any).result.allocations).toBeDefined();
+    expect((query as any).result.allocations.length).toBeGreaterThan(0);
   });
 
   it("close session flushes manifest", async () => {
