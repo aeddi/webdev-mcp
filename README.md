@@ -1,6 +1,6 @@
-# claude-webdev-mcp
+# webdev-mcp
 
-An MCP server that gives Claude (or any MCP client) a full browser DevTools toolkit: profiling, network inspection, heap analysis, Lighthouse audits, cross-browser screenshots, and more.
+An MCP server that gives any AI agent a full browser DevTools toolkit: profiling, network inspection, heap analysis, Lighthouse audits, cross-browser screenshots, and more.
 
 It launches a headless Chromium via Playwright, exposes Chrome DevTools Protocol data through 19 MCP tools, and saves profiling artifacts to disk for later analysis.
 
@@ -52,7 +52,7 @@ It launches a headless Chromium via Playwright, exposes Chrome DevTools Protocol
 ## Installation
 
 ```bash
-git clone <repo-url> && cd claude-webdev-mcp
+git clone <repo-url> && cd webdev-mcp
 npm install
 npx playwright install
 npm run build
@@ -60,32 +60,18 @@ npm run build
 
 ### Claude Code
 
-Add to your Claude Code MCP settings (`~/.claude/settings.json` or project `.mcp.json`):
+Register the MCP server with `claude mcp add`:
 
-```json
-{
-    "mcpServers": {
-        "webdev": {
-            "command": "node",
-            "args": ["/absolute/path/to/claude-webdev-mcp/dist/server.js"]
-        }
-    }
-}
+```bash
+claude mcp add webdev -- node /absolute/path/to/webdev-mcp/dist/server.js
 ```
 
-### Claude Desktop
+This stores the configuration in `~/.claude.json` (local scope by default). Use `--scope project` to write to `.mcp.json` at the repo root instead (version-controlled, shared with teammates).
 
-Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+Verify the server is registered:
 
-```json
-{
-    "mcpServers": {
-        "webdev": {
-            "command": "node",
-            "args": ["/absolute/path/to/claude-webdev-mcp/dist/server.js"]
-        }
-    }
-}
+```bash
+claude mcp list
 ```
 
 ## Configuration

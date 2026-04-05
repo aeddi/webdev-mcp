@@ -104,7 +104,7 @@ const analysisTools = createAnalysisTools(store, queryEngine);
 // ---- MCP Server
 
 const mcp = new McpServer({
-  name: "claude-webdev-mcp",
+  name: "webdev-mcp",
   version: "0.1.0",
 });
 
